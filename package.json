@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build",
-    "start": "npm run build && electron ."
+    "start": "npm run build && electron .",
+    "dist": "vite build && electron-builder"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.18",
@@ -20,6 +21,33 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "vite": "^5.4.11",
-    "wait-on": "^8.0.1"
+    "wait-on": "^8.0.1",
+    "electron-builder": "^25.1.8"
+  },
+  "author": "WA Manager",
+  "build": {
+    "appId": "com.wamanager.app",
+    "productName": "WA Manager",
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }

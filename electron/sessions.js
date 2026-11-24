@@ -7,7 +7,8 @@ const pino = require('pino');
 const MAX_MESSAGES_PER_ACCOUNT = 500;
 
 class SessionManager {
-  constructor(baseDir, emit) {
+  constructor(baseDir, emit, onIncoming) {
+    this.onIncoming = onIncoming;
     this.baseDir = baseDir;
     this.emit = emit;
     this.metaFile = path.join(baseDir, 'accounts.json');
@@ -16,6 +17,12 @@ class SessionManager {
     this.inbox = new Map();      // id -> message[]
     fs.mkdirSync(baseDir, { recursive: true });
     this._load();
+    this.msgFile = path.join(baseDir, 'messages.json');
+    try { for (const [k, v] of Object.entries(JSON.parse(fs.readFileSync(this.msgFile, 'utf8')))) this.inbox.set(k, v); } catch { /* none yet */ }
+  }
+  _persist() {
+    clearTimeout(this._pt);
+    this._pt = setTimeout(() => fs.writeFile(this.msgFile, JSON.stringify(Object.fromEntries(this.inbox)), () => {}), 800);
   }
 
   _load() {
@@ -38,6 +45,8 @@ class SessionManager {
 
   list() { return [...this.accounts.values()].map((a) => this._public(a)); }
   messages(id) { return this.inbox.get(id) || []; }
+
+  flush() { try { fs.writeFileSync(this.msgFile, JSON.stringify(Object.fromEntries(this.inbox))); } catch { /* ignore */ } }
 
   restoreAll() { for (const id of this.accounts.keys()) this.start(id); }
 
@@ -115,10 +124,13 @@ class SessionManager {
 
   _push(accountId, msg) {
     const list = this.inbox.get(accountId) || [];
+    if (list.some((m) => m.id === msg.id)) return;
     list.push(msg);
     if (list.length > MAX_MESSAGES_PER_ACCOUNT) list.shift();
     this.inbox.set(accountId, list);
     this.emit('message:new', { accountId, message: msg });
+    this._persist();
+    if (!msg.fromMe) this.onIncoming?.(accountId, msg);
   }
 
   async sendText(id, jid, text) {
